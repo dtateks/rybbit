@@ -41,6 +41,7 @@ jobs:
         run: |
           sed -i 's|    plugins: pluginList,|    baseURL: process.env.BASE_URL,\n    trustHost: true,\n    plugins: pluginList,|' server/src/lib/auth.ts
           sed -i 's|trustedOrigins: \["http://localhost:3002"\]|trustedOrigins: ["http://localhost:3002", process.env.BASE_URL].filter(Boolean)|' server/src/lib/auth.ts
+          sed -i 's|sameSite: process.env.NODE_ENV === "production" ? "none" : "lax"|sameSite: "lax"|' server/src/lib/auth.ts
 
       - name: Set up Docker Buildx
         if: steps.sync.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
