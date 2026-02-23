@@ -1,0 +1,66 @@
+name: Sync Upstream & Build Client
+
+on:
+  schedule:
+    - cron: "0 6 * * *"  # Daily 6AM UTC
+  workflow_dispatch:       # Manual trigger
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  sync-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Sync with upstream
+        id: sync
+        run: |
+          git remote add upstream https://github.com/rybbit-io/rybbit.git
+          git fetch upstream main
+          BEFORE=$(git rev-parse HEAD)
+          git merge upstream/main --no-edit || {
+            echo "::warning::Merge conflict detected. Manual resolution needed."
+            exit 1
+          }
+          AFTER=$(git rev-parse HEAD)
+          if [ "$BEFORE" != "$AFTER" ]; then
+            git push origin main
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Docker Buildx
+        if: steps.sync.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        if: steps.sync.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push client
+        if: steps.sync.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: client/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/dtateks/rybbit-client:latest
+            ghcr.io/dtateks/rybbit-client:${{ github.sha }}
+          build-args: |
+            NEXT_PUBLIC_BACKEND_URL=https://analytics.dta.business
+            NEXT_PUBLIC_DISABLE_SIGNUP=true
+          platforms: linux/amd64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
