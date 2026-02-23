@@ -36,9 +36,10 @@ jobs:
             echo "changed=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Patch trustedOrigins for custom domain
+      - name: Patch Better Auth for custom domain (baseURL + trustHost + trustedOrigins)
         if: steps.sync.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
         run: |
+          sed -i 's|    plugins: pluginList,|    baseURL: process.env.BASE_URL,\n    trustHost: true,\n    plugins: pluginList,|' server/src/lib/auth.ts
           sed -i 's|trustedOrigins: \["http://localhost:3002"\]|trustedOrigins: ["http://localhost:3002", process.env.BASE_URL].filter(Boolean)|' server/src/lib/auth.ts
 
       - name: Set up Docker Buildx
