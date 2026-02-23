@@ -22,15 +22,15 @@ jobs:
         id: sync
         run: |
           git remote add upstream https://github.com/rybbit-io/rybbit.git
-          git fetch upstream main
+          git fetch upstream master
           BEFORE=$(git rev-parse HEAD)
-          git merge upstream/main --no-edit || {
+          git merge upstream/master --no-edit || {
             echo "::warning::Merge conflict detected. Manual resolution needed."
             exit 1
           }
           AFTER=$(git rev-parse HEAD)
           if [ "$BEFORE" != "$AFTER" ]; then
-            git push origin main
+            git push origin master
             echo "changed=true" >> "$GITHUB_OUTPUT"
           else
             echo "changed=false" >> "$GITHUB_OUTPUT"
